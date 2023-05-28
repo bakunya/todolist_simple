@@ -1,37 +1,34 @@
 use std::{net::TcpStream, io::Write};
+use sqlx::Pool;
+use sqlx_mysql::MySql;
+
 use crate::{
     types::{
         http::HttpObject, 
         todo::ToDo
     }, 
-    utils::{
-        read_file::read as read_file, 
-        write_file::write as write_file
+    database::{
+        todos::create::create as create_todo
     }
 };
 
-pub fn handle_post(mut stream: TcpStream, http_object: HttpObject) {
+pub fn handle_post(mut stream: TcpStream, http_object: HttpObject, pool: Pool<MySql>) {
     let todo_http: ToDo = serde_json::from_str(http_object.body.unwrap().as_str()).expect("fail");
     
     let mut todo = ToDo::init();
     todo.task = todo_http.task;
     todo.completed = Some(false);
-    
-    let data_vec: Option<Vec<ToDo>>;
-    let data_file: String = read_file();
-    
-    if data_file != "" {
-        let mut tmp: Vec<ToDo> = serde_json::from_str(data_file.as_str()).unwrap();
-        tmp.push(todo);
-        data_vec = Some(tmp);
-    } else {
-        data_vec = Some(vec![todo]);
-    }
 
-    let json = serde_json::to_string(&data_vec.unwrap()).unwrap();
-    write_file(json);
-    
-    let response = format!("HTTP/1.1 201 OK\r\n");
-    stream.write(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
+    match create_todo(todo, pool) {
+        Ok(_) => {
+            let response = format!("HTTP/1.1 201 OK\r\n");
+            stream.write(response.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        },
+        Err(_) => {
+            let response = format!("HTTP/1.1 500 SERVER ERROR\r\n");
+            stream.write(response.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        }
+    }
 }

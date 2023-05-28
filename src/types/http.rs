@@ -8,6 +8,9 @@ pub struct HttpObject {
     pub host: Option<String>,
     pub http_headers: Option<Vec<Vec<String>>>,
     pub body: Option<String>,
+    pub file: Option<String>,
+    pub file_ext: Option<String>,
+    pub file_valid: Option<bool>
 }
 
 impl HttpObject {
@@ -75,6 +78,41 @@ impl HttpObject {
             i += 1;
         }
     }
+
+    fn put_http_file(&mut self, value: Vec<&str>) {
+        let path = value.get(0).unwrap().split(" ").map(|v| v.to_string()).collect::<Vec<String>>().get(1).unwrap().to_string();
+        let mut file = path.split("/").last().unwrap().to_string();        
+
+        if file.is_empty() {
+            file = "index.html".to_lowercase();
+        }
+
+        let file_ext = file.split(".").last().unwrap().to_string();
+        let allowed_ext = ["jpg", "png", "svg", "jpeg", "gif", "html", "css", "js", "ico"];
+        
+        let mut is_valid = true;
+
+        if file.contains("%") {
+            is_valid = false;
+        } else {
+            for itm in allowed_ext {
+                if file_ext.to_lowercase() == itm {
+                    is_valid = true;
+                    break;
+                }
+    
+                is_valid = false;
+            }
+        }
+
+        if file_ext.to_lowercase() != "html" {
+            file = format!("assets/{}", file);
+        }
+
+        self.file = Some(file);
+        self.file_ext = Some(file_ext);
+        self.file_valid = Some(is_valid);
+    }
 }
 
 impl HttpObject {
@@ -86,6 +124,9 @@ impl HttpObject {
             http_headers: None,
             host: None,
             body: None,
+            file: None,
+            file_ext: None,
+            file_valid: None,
         }
     }
 
@@ -109,6 +150,20 @@ impl HttpObject {
         found
     }
 
+    pub fn get_query_string(&self, key: &str) -> Option<String> {
+        let mut res = None;
+        let cloned = self.query_string.clone().unwrap_or_default();
+
+        for iter in cloned.split("&").collect::<Vec<_>>() {
+            if iter.contains(&key) {
+                res = Some(iter.trim().replace(key, "").trim().to_string());
+                break;
+            }
+        }
+
+        res
+    }
+
     pub fn to_object(&mut self, value: Vec<&str>) {
         self.put_method(value.clone());
         self.put_query(value.clone());
@@ -116,5 +171,6 @@ impl HttpObject {
         self.put_host(value.clone());
         self.put_body(value.clone());
         self.put_http_headers(value.clone());
+        self.put_http_file(value.clone());
     }
 }

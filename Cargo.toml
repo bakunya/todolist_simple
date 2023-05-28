@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sqlx = { version = "0.7.0-alpha.3", features = [ "runtime-async-std" ] }
+sqlx-mysql = "0.7.0-alpha.3"
+tokio = { version = "1.28.1", features = ["macros", "rt-multi-thread", "io-util"] }
